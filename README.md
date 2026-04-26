@@ -1,20 +1,85 @@
+![Python](https://img.shields.io/badge/Python-3.11+-blue?logo=python&logoColor=white)
+![Platform](https://img.shields.io/badge/Platform-Windows-0078D6?logo=windows&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-green)
+![Status](https://img.shields.io/badge/Status-Active-brightgreen)
+![No Cloud](https://img.shields.io/badge/Cloud-None%20Required-orange)
+
 # Room Presence Detector
 
-Ultrasonic sonar-based room presence detection for Windows. Uses your laptop's built-in speakers and microphone to detect whether someone is in the room, and auto-locks the PC when the room is empty.
+**Turn your laptop into a hands-free security system.** This app uses your built-in speakers and microphone as an ultrasonic sonar to detect whether someone is in the room — and auto-locks your PC the moment you walk away.
+
+No cameras. No sensors. No cloud. Just physics.
+
+---
+
+## Why Use This?
+
+| Problem | Solution |
+|---|---|
+| You walk away from your desk and forget to lock your PC | Auto-locks within seconds of you leaving |
+| You don't want to buy extra hardware (motion sensors, IR cameras) | Works with hardware you already have — your laptop's speakers + mic |
+| You care about privacy and don't want a camera watching you | Uses inaudible sound waves, not video — nothing to see, nothing to record |
+| Corporate security policies require screen lock when unattended | Enforces the policy automatically, no human discipline needed |
+| You want something that works offline, no accounts, no subscriptions | Runs 100% locally, zero internet, zero cloud, zero cost |
+
+## What It Does
+
+- Emits an **18kHz ultrasonic chirp** from your speakers every 2 seconds (inaudible to most adults)
+- Records the echo via your microphone and analyzes it with **FFT signal processing**
+- Detects changes in the echo pattern caused by a person's body reflecting the sound
+- Shows a **live floating HUD** with real-time status, confidence score, and energy visualization
+- **Auto-locks Windows** when the room has been empty for a configurable duration
+- Lives quietly in your **system tray** — green dot = present, red dot = empty
+
+## Use Cases
+
+- **Office workers** — Never leave your desk unlocked again
+- **Work-from-home** — Auto-lock when you step away for coffee
+- **Shared workspaces** — Protect sensitive data without thinking about it
+- **Security-conscious users** — Add a physical-presence layer to your security setup
+- **Students** — Keep roommates out of your machine
+- **Developers** — A cool signal-processing project to hack on and customize
+
+---
 
 ## How It Works
 
-The app emits an 18kHz ultrasonic chirp from the speakers every 2 seconds and records the echo via the microphone. Using FFT analysis, it measures the energy in the 17–19kHz band. When a person is in the room, the echo pattern changes (reflections off the person's body alter the signal). The app compares the current echo energy against a calibrated baseline to determine presence.
+```
+Speaker emits 18kHz chirp (50ms burst)
+         |
+         v
+Sound bounces off walls, furniture, and people
+         |
+         v
+Microphone captures the echo
+         |
+         v
+FFT extracts energy in 17-19kHz band
+         |
+         v
+Compare against calibrated "empty room" baseline
+         |
+         v
+Person present? --> Green status, keep monitoring
+Room empty?     --> Debounce (3 readings) --> Lock PC
+```
+
+The key insight: an empty room has a consistent echo signature. A person in the room changes it — their body absorbs and reflects sound differently than bare walls. The app calibrates against the empty room and flags any deviation.
+
+---
 
 ## Installation
 
 ### Prerequisites
 - Python 3.11+
-- Windows 11
+- Windows 10/11
 
 ### Setup
 
 ```bash
+# Clone or download this project
+cd "Room presence detector"
+
 # Create a virtual environment
 python -m venv venv
 venv\Scripts\activate
@@ -24,6 +89,12 @@ pip install -r requirements.txt
 ```
 
 All dependencies install cleanly via pip — no C compiler required. `sounddevice` bundles the PortAudio binary.
+
+### Quick Launch
+
+Double-click **`run.bat`** to start the app without a console window.
+
+---
 
 ## IMPORTANT: Disable Microphone Echo Cancellation
 
@@ -44,13 +115,17 @@ Windows enables echo cancellation on laptop microphones by default. This suppres
 
 The app runs a diagnostic on startup and will show a warning with an "Open Sound Settings" button if echo cancellation is detected.
 
+---
+
 ## Usage
 
 ```bash
 python -m presence_detector.main
 ```
 
-On first launch:
+Or just double-click **`run.bat`**.
+
+### First Launch
 1. **Leave the room empty** for 10 seconds while calibration runs
 2. The HUD will show "CALIBRATING..." during this phase
 3. Once calibrated, the status switches to "PRESENT" or "EMPTY"
@@ -61,9 +136,11 @@ On first launch:
 
 ### HUD Window
 - Drag anywhere to reposition
-- Shows real-time status, confidence score, and echo energy
-- **Recalibrate** button: re-run calibration (leave the room empty)
-- **Auto-Lock** checkbox: enable/disable automatic Windows locking
+- Shows real-time status, confidence score, and echo energy bar
+- **Recalibrate** button — re-run calibration (leave the room empty)
+- **Auto-Lock** checkbox — enable/disable automatic Windows locking
+
+---
 
 ## Configuration
 
@@ -79,7 +156,7 @@ All parameters are in `presence_detector/config.py`:
 | `BAND_LOW` | 17000 Hz | FFT analysis band lower bound |
 | `BAND_HIGH` | 19000 Hz | FFT analysis band upper bound |
 | `CALIBRATION_DURATION` | 10.0 s | Calibration phase length |
-| `PRESENCE_THRESHOLD` | 2.0 | Std deviations from baseline to trigger presence |
+| `PRESENCE_THRESHOLD` | 2.0 | Std deviations from baseline to trigger |
 | `EMPTY_DEBOUNCE_COUNT` | 3 | Consecutive empty readings before confirming |
 | `AUTO_LOCK_ENABLED` | True | Auto-lock the PC when empty |
 | `LOCK_DELAY_SECONDS` | 0.0 | Extra delay after debounce before locking |
@@ -90,16 +167,49 @@ If 18kHz is audible to you (common for younger people):
 
 1. Open `presence_detector/config.py`
 2. Change `CHIRP_FREQ` to `19000` or `20000`
-3. Adjust `BAND_LOW` and `BAND_HIGH` accordingly (e.g., `19000`–`21000` for a 20kHz chirp)
+3. Adjust `BAND_LOW` and `BAND_HIGH` accordingly (e.g., `19000`-`21000` for a 20kHz chirp)
 4. Recalibrate after changing
 
 **Note:** Higher frequencies may have weaker speaker/mic response on some laptops. If the app warns about low signal, try lowering the frequency instead.
 
+---
+
+## Tech Stack
+
+| Component | Library | Purpose |
+|---|---|---|
+| Audio I/O | `sounddevice` | Emit chirps, record echoes via PortAudio |
+| Signal Processing | `numpy` + `scipy` | FFT analysis, windowing, energy extraction |
+| UI | `PyQt6` | System tray icon + floating HUD |
+| Windows Lock | `ctypes` | Native `LockWorkStation()` API call |
+
+---
+
 ## Troubleshooting
 
-- **"Microphone echo cancellation is active"**: The most common issue. See the "Disable Microphone Echo Cancellation" section above. The app cannot work until this is fixed.
-- **"No microphone found" / "No speaker found"**: Check Windows sound settings, ensure devices are enabled and set as default
-- **"Very low signal" warning**: Your laptop's speakers/mic may not respond well at 18kHz. Try lowering `CHIRP_FREQ` to 16000 or 17000
-- **False positives**: Increase `PRESENCE_THRESHOLD` (e.g., to 3.0 or 4.0)
-- **Slow to detect empty room**: Decrease `EMPTY_DEBOUNCE_COUNT` (minimum 1)
-- **App locks too quickly**: Increase `LOCK_DELAY_SECONDS` (e.g., 10.0 for a 10-second grace period)
+| Issue | Fix |
+|---|---|
+| "Microphone echo cancellation is active" | Most common issue. See the "Disable Echo Cancellation" section above |
+| "No microphone/speaker found" | Check Windows sound settings, ensure devices are enabled and set as default |
+| "Very low signal" warning | Your hardware may not respond at 18kHz. Try `CHIRP_FREQ = 16000` |
+| False positives | Increase `PRESENCE_THRESHOLD` to 3.0 or 4.0 |
+| Slow to detect empty room | Decrease `EMPTY_DEBOUNCE_COUNT` (minimum 1) |
+| Locks too quickly | Increase `LOCK_DELAY_SECONDS` (e.g., 10.0 for a 10s grace period) |
+
+---
+
+## How Is This Different From...
+
+| Alternative | Drawback | This App |
+|---|---|---|
+| PIR motion sensor | Requires extra hardware ($15-50) | Uses existing laptop hardware |
+| Webcam-based detection | Privacy concern, CPU-heavy | No video, minimal CPU |
+| Bluetooth phone proximity | Drains phone battery, range issues | No phone needed |
+| Windows Dynamic Lock | Unreliable, slow (30s+ delay) | Detects in ~6 seconds |
+| Manual Win+L habit | Humans forget | Never forgets |
+
+---
+
+## License
+
+MIT License. Use it, modify it, ship it.
