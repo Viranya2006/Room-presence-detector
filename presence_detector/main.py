@@ -31,9 +31,10 @@ def main():
     sonar.calibration_sample.connect(detector.on_calibration_sample)
     sonar.calibration_complete.connect(detector.on_calibration_complete)
 
-    # Sonar -> HUD (errors)
+    # Sonar -> HUD (errors + diagnostics)
     sonar.error_occurred.connect(hud.on_error)
     sonar.error_occurred.connect(tray.on_error)
+    sonar.audio_diagnostic.connect(hud.on_audio_diagnostic)
 
     # Detector -> HUD
     detector.state_changed.connect(hud.on_state_changed)

@@ -25,6 +25,25 @@ pip install -r requirements.txt
 
 All dependencies install cleanly via pip — no C compiler required. `sounddevice` bundles the PortAudio binary.
 
+## IMPORTANT: Disable Microphone Echo Cancellation
+
+Windows enables echo cancellation on laptop microphones by default. This suppresses speaker audio from reaching the mic — which breaks the sonar approach. **You must disable audio enhancements** before the app will work:
+
+### Method 1: Windows Settings (Windows 11)
+1. Open **Settings > System > Sound**
+2. Under Input, click your **Microphone**
+3. Set **Audio enhancements** to **Off**
+
+### Method 2: Control Panel (works on all Windows versions)
+1. Open **Control Panel > Sound** (or run `mmsys.cpl`)
+2. Go to the **Recording** tab
+3. Right-click your **Microphone** > **Properties**
+4. Go to the **Advanced** tab
+5. Uncheck **"Enable audio enhancements"**
+6. Click **Apply**
+
+The app runs a diagnostic on startup and will show a warning with an "Open Sound Settings" button if echo cancellation is detected.
+
 ## Usage
 
 ```bash
@@ -78,6 +97,7 @@ If 18kHz is audible to you (common for younger people):
 
 ## Troubleshooting
 
+- **"Microphone echo cancellation is active"**: The most common issue. See the "Disable Microphone Echo Cancellation" section above. The app cannot work until this is fixed.
 - **"No microphone found" / "No speaker found"**: Check Windows sound settings, ensure devices are enabled and set as default
 - **"Very low signal" warning**: Your laptop's speakers/mic may not respond well at 18kHz. Try lowering `CHIRP_FREQ` to 16000 or 17000
 - **False positives**: Increase `PRESENCE_THRESHOLD` (e.g., to 3.0 or 4.0)

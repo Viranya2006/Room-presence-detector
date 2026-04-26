@@ -18,6 +18,7 @@ class SonarEngine(QThread):
     calibration_sample = pyqtSignal(float)
     calibration_complete = pyqtSignal(float, float)
     error_occurred = pyqtSignal(str)
+    audio_diagnostic = pyqtSignal(bool, str)
 
     def __init__(self, config: Config, parent=None):
         super().__init__(parent)
@@ -48,13 +49,50 @@ class SonarEngine(QThread):
         except sd.PortAudioError:
             raise RuntimeError("No speaker found")
 
-    def _do_cycle(self) -> tuple[float, np.ndarray]:
-        cfg = self._config
-        total_frames = cfg.total_cycle_frames
+    def _run_audio_diagnostic(self) -> bool:
+        """Play a 1kHz test tone and check if the mic picks it up.
+        Returns True if the mic captures speaker output (echo cancellation off)."""
+        sr = self._config.SAMPLE_RATE
+        duration = 0.5
+        samples = int(sr * duration)
+        t = np.linspace(0, duration, samples, endpoint=False)
+        test_tone = (np.sin(2 * np.pi * 1000 * t) * 0.9).astype(np.float32)
 
+        # Record ambient baseline
+        ambient = sd.rec(samples, samplerate=sr, channels=1, dtype='float32', blocking=True)
+        ambient_rms = float(np.sqrt(np.mean(ambient ** 2)))
+
+        time.sleep(0.1)
+
+        # Play tone and record simultaneously
+        during = sd.playrec(test_tone.reshape(-1, 1), samplerate=sr, channels=1,
+                            dtype='float32', blocking=True)
+        during_rms = float(np.sqrt(np.mean(during ** 2)))
+
+        ratio = during_rms / max(ambient_rms, 1e-10)
+        logger.info("Audio diagnostic: ambient_rms=%.6f, during_rms=%.6f, ratio=%.2f",
+                     ambient_rms, during_rms, ratio)
+
+        # If the mic picks up the speaker, RMS should increase significantly
+        if ratio > 1.5:
+            self.audio_diagnostic.emit(True, "Audio pipeline OK — mic captures speaker output.")
+            return True
+        else:
+            self.audio_diagnostic.emit(False,
+                "Microphone echo cancellation is active.\n"
+                "The mic cannot hear the speakers.\n\n"
+                "To fix: Open Windows Settings > System > Sound\n"
+                "> Microphone > Audio Enhancements > set to Off\n\n"
+                "Or: Control Panel > Sound > Recording tab\n"
+                "> Microphone > Properties > Advanced\n"
+                "> Uncheck 'Enable audio enhancements'"
+            )
+            return False
+
+    def _do_cycle(self) -> tuple[float, np.ndarray]:
         recording = sd.playrec(
             self._output_buffer.reshape(-1, 1),
-            samplerate=cfg.SAMPLE_RATE,
+            samplerate=self._config.SAMPLE_RATE,
             channels=1,
             dtype='float32',
             blocking=True,
@@ -118,6 +156,10 @@ class SonarEngine(QThread):
             self._check_devices()
             sd.default.samplerate = self._config.SAMPLE_RATE
             sd.default.channels = self._config.CHANNELS
+
+            mic_ok = self._run_audio_diagnostic()
+            if not mic_ok:
+                logger.warning("Audio diagnostic failed — echo cancellation likely active")
 
             if self._calibrating:
                 self._run_calibration()

@@ -1,3 +1,5 @@
+import os
+import subprocess
 from datetime import datetime
 
 from PyQt6.QtCore import Qt, QPoint
@@ -147,6 +149,15 @@ class HudWindow(QWidget):
 
         layout.addLayout(controls)
 
+        self.fix_audio_btn = QPushButton("Open Sound Settings")
+        self.fix_audio_btn.setStyleSheet(
+            "QPushButton { background-color: #5c3300; color: #FFB74D; border: 1px solid #FF9800; }"
+            "QPushButton:hover { background-color: #6d3d00; }"
+        )
+        self.fix_audio_btn.clicked.connect(self._open_sound_settings)
+        self.fix_audio_btn.hide()
+        layout.addWidget(self.fix_audio_btn)
+
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
         outer.addWidget(container)
@@ -197,6 +208,23 @@ class HudWindow(QWidget):
     def on_warning(self, message: str):
         self.error_label.setText(message)
         self.error_label.show()
+
+    def on_audio_diagnostic(self, ok: bool, message: str):
+        if ok:
+            self.error_label.hide()
+            self.fix_audio_btn.hide()
+        else:
+            self.error_label.setText(message)
+            self.error_label.setStyleSheet("color: #FFB74D; font-size: 8pt;")
+            self.error_label.show()
+            self.fix_audio_btn.show()
+
+    @staticmethod
+    def _open_sound_settings():
+        try:
+            subprocess.Popen(["rundll32.exe", "shell32.dll,Control_RunDLL", "mmsys.cpl,,1"])
+        except Exception:
+            os.startfile("ms-settings:sound")
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
