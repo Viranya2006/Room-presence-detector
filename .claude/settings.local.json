@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "Bash(pip show *)",
+      "Bash(python -m pip show pyaudio numpy scipy PyQt6)",
+      "Bash(python -c \"import numpy; print\\('numpy', numpy.__version__\\); import scipy; print\\('scipy', scipy.__version__\\); from scipy import fft; print\\('scipy.fft available'\\)\")",
+      "Bash(python -c \"import ctypes; print\\(ctypes.windll.user32\\)\")",
+      "Bash(venv/Scripts/python --version)"
+    ]
+  },
+  "prefersReducedMotion": true
+}
