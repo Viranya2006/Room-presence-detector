@@ -3,7 +3,7 @@ import time
 from threading import Event
 
 import numpy as np
-import pyaudio
+import sounddevice as sd
 from PyQt6.QtCore import QThread, pyqtSignal
 from scipy.fft import rfft, rfftfreq
 from scipy.signal.windows import tukey, hann
@@ -24,95 +24,44 @@ class SonarEngine(QThread):
         self._config = config
         self._stop_event = Event()
         self._calibrating = False
-        self._pa: pyaudio.PyAudio | None = None
-        self._stream: pyaudio.Stream | None = None
-        self._input_stream: pyaudio.Stream | None = None
-        self._output_stream: pyaudio.Stream | None = None
         self._chirp = self._generate_chirp()
+        self._output_buffer = self._build_output_buffer()
 
     def _generate_chirp(self) -> np.ndarray:
         cfg = self._config
         t = np.linspace(0, cfg.CHIRP_DURATION, cfg.chirp_samples, endpoint=False)
         envelope = tukey(cfg.chirp_samples, alpha=0.1)
         chirp = np.sin(2 * np.pi * cfg.CHIRP_FREQ * t) * envelope
-        return (chirp * 32767).astype(np.int16)
+        return chirp.astype(np.float32)
 
-    def _build_output_buffer(self) -> bytes:
-        silence_samples = self._config.record_frames
-        silence = np.zeros(silence_samples, dtype=np.int16)
-        full = np.concatenate([self._chirp, silence])
-        return full.tobytes()
+    def _build_output_buffer(self) -> np.ndarray:
+        silence = np.zeros(self._config.record_frames, dtype=np.float32)
+        return np.concatenate([self._chirp, silence])
 
-    def _open_streams(self):
-        cfg = self._config
-        self._input_stream = None
-        self._output_stream = None
-
-        # Try full-duplex first
+    def _check_devices(self):
         try:
-            self._stream = self._pa.open(
-                format=pyaudio.paInt16,
-                channels=cfg.CHANNELS,
-                rate=cfg.SAMPLE_RATE,
-                input=True,
-                output=True,
-                frames_per_buffer=cfg.CHUNK_SIZE,
-            )
-            logger.info("Opened full-duplex audio stream")
-            return
-        except Exception:
-            logger.warning("Full-duplex failed, using separate streams")
-            self._stream = None
-
-        # Fallback: separate input and output streams
-        self._input_stream = self._pa.open(
-            format=pyaudio.paInt16,
-            channels=cfg.CHANNELS,
-            rate=cfg.SAMPLE_RATE,
-            input=True,
-            frames_per_buffer=cfg.CHUNK_SIZE,
-        )
-        self._output_stream = self._pa.open(
-            format=pyaudio.paInt16,
-            channels=cfg.CHANNELS,
-            rate=cfg.SAMPLE_RATE,
-            output=True,
-            frames_per_buffer=cfg.CHUNK_SIZE,
-        )
-        logger.info("Opened separate input/output streams")
-
-    def _flush_input(self):
-        """Discard any stale frames in the input buffer."""
-        stream = self._stream or self._input_stream
-        if stream is None:
-            return
+            sd.query_devices(kind='input')
+        except sd.PortAudioError:
+            raise RuntimeError("No microphone found")
         try:
-            avail = stream.get_read_available()
-            if avail > 0:
-                stream.read(avail, exception_on_overflow=False)
-        except Exception:
-            pass
+            sd.query_devices(kind='output')
+        except sd.PortAudioError:
+            raise RuntimeError("No speaker found")
 
     def _do_cycle(self) -> tuple[float, np.ndarray]:
         cfg = self._config
-        output_buf = self._build_output_buffer()
         total_frames = cfg.total_cycle_frames
 
-        self._flush_input()
+        recording = sd.playrec(
+            self._output_buffer.reshape(-1, 1),
+            samplerate=cfg.SAMPLE_RATE,
+            channels=1,
+            dtype='float32',
+            blocking=True,
+        )
 
-        if self._stream is not None:
-            # Full-duplex: write blocks while input buffer fills simultaneously
-            self._stream.write(output_buf)
-            raw = self._stream.read(total_frames, exception_on_overflow=False)
-        elif self._input_stream and self._output_stream:
-            # Separate streams: input is already recording, write chirp, then read
-            self._output_stream.write(output_buf)
-            raw = self._input_stream.read(total_frames, exception_on_overflow=False)
-        else:
-            raise RuntimeError("No audio stream available")
-
-        recording = np.frombuffer(raw, dtype=np.int16).astype(np.float64)
-        return self._analyze(recording)
+        audio = recording.flatten().astype(np.float64)
+        return self._analyze(audio)
 
     def _analyze(self, recording: np.ndarray) -> tuple[float, np.ndarray]:
         cfg = self._config
@@ -150,7 +99,7 @@ class SonarEngine(QThread):
 
             remaining = cfg.CYCLE_INTERVAL - (cfg.CHIRP_DURATION + cfg.RECORD_DURATION)
             if remaining > 0 and not self._stop_event.is_set():
-                time.sleep(remaining)
+                self._stop_event.wait(timeout=remaining)
 
         if energies:
             baseline = float(np.mean(energies))
@@ -166,19 +115,9 @@ class SonarEngine(QThread):
     def run(self):
         consecutive_errors = 0
         try:
-            self._pa = pyaudio.PyAudio()
-            try:
-                self._pa.get_default_input_device_info()
-            except IOError:
-                self.error_occurred.emit("No microphone found")
-                return
-            try:
-                self._pa.get_default_output_device_info()
-            except IOError:
-                self.error_occurred.emit("No speaker found")
-                return
-
-            self._open_streams()
+            self._check_devices()
+            sd.default.samplerate = self._config.SAMPLE_RATE
+            sd.default.channels = self._config.CHANNELS
 
             if self._calibrating:
                 self._run_calibration()
@@ -204,23 +143,3 @@ class SonarEngine(QThread):
 
         except Exception as e:
             self.error_occurred.emit(str(e))
-        finally:
-            self._cleanup()
-
-    def _cleanup(self):
-        for stream in (self._stream, self._input_stream, self._output_stream):
-            if stream is not None:
-                try:
-                    stream.stop_stream()
-                    stream.close()
-                except Exception:
-                    pass
-        self._stream = None
-        self._input_stream = None
-        self._output_stream = None
-        if self._pa is not None:
-            try:
-                self._pa.terminate()
-            except Exception:
-                pass
-            self._pa = None

@@ -23,12 +23,7 @@ venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-**PyAudio troubleshooting:** If `pip install PyAudio` fails, try:
-```bash
-pip install pipwin
-pipwin install pyaudio
-```
-Or download a pre-built wheel from https://www.lfd.uci.edu/~gohlke/pythonlibs/#pyaudio
+All dependencies install cleanly via pip — no C compiler required. `sounddevice` bundles the PortAudio binary.
 
 ## Usage
 

@@ -6,7 +6,10 @@
       "Bash(python -m pip show pyaudio numpy scipy PyQt6)",
       "Bash(python -c \"import numpy; print\\('numpy', numpy.__version__\\); import scipy; print\\('scipy', scipy.__version__\\); from scipy import fft; print\\('scipy.fft available'\\)\")",
       "Bash(python -c \"import ctypes; print\\(ctypes.windll.user32\\)\")",
-      "Bash(venv/Scripts/python --version)"
+      "Bash(venv/Scripts/python --version)",
+      "Bash(venv/Scripts/pip install *)",
+      "Bash(venv/Scripts/python -c \"from presence_detector.config import Config; c = Config\\(\\); print\\(f'chirp_samples={c.chirp_samples}, record_frames={c.record_frames}, total={c.total_cycle_frames}, cal_cycles={c.calibration_cycles}'\\)\")",
+      "Bash(venv/Scripts/python -c ' *)"
     ]
   },
   "prefersReducedMotion": true
