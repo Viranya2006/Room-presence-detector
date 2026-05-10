@@ -44,25 +44,7 @@ No cameras. No sensors. No cloud. Just physics.
 
 ## How It Works
 
-```
-Speaker emits 18kHz chirp (50ms burst)
-         |
-         v
-Sound bounces off walls, furniture, and people
-         |
-         v
-Microphone captures the echo
-         |
-         v
-FFT extracts energy in 17-19kHz band
-         |
-         v
-Compare against calibrated "empty room" baseline
-         |
-         v
-Person present? --> Green status, keep monitoring
-Room empty?     --> Debounce (3 readings) --> Lock PC
-```
+<img src="assets/how-it-works.png" alt="How It Works diagram" />
 
 The key insight: an empty room has a consistent echo signature. A person in the room changes it — their body absorbs and reflects sound differently than bare walls. The app calibrates against the empty room and flags any deviation.
 
