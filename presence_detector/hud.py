@@ -100,7 +100,7 @@ class HudWindow(QWidget):
         layout.setContentsMargins(16, 12, 16, 12)
         layout.setSpacing(6)
 
-        self.title_label = QLabel("ROOM PRESENCE DETECTOR")
+        self.title_label = QLabel("Specter")
         self.title_label.setObjectName("title")
         self.title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.title_label)
@@ -271,7 +271,7 @@ class TrayIcon(QSystemTrayIcon):
         self._icons = {state: factory() for state, factory in ICONS.items()}
         self._error_icon = _make_icon(QColor("#9E9E9E"))
         self.setIcon(self._icons[State.CALIBRATING])
-        self.setToolTip("Room Presence Detector — Calibrating")
+        self.setToolTip("Specter — Calibrating")
 
         menu = QMenu()
 
@@ -308,16 +308,16 @@ class TrayIcon(QSystemTrayIcon):
         icon = self._icons.get(state, self._error_icon)
         self.setIcon(icon)
         tooltips = {
-            State.CALIBRATING: "Room Presence Detector — Calibrating",
-            State.PRESENT: "Room Presence Detector — Present",
-            State.EMPTY: "Room Presence Detector — Empty",
-            State.LOCKING: "Room Presence Detector — Locking...",
+            State.CALIBRATING: "Specter — Calibrating",
+            State.PRESENT: "Specter — Present",
+            State.EMPTY: "Specter — Empty",
+            State.LOCKING: "Specter — Locking...",
         }
-        self.setToolTip(tooltips.get(state, "Room Presence Detector"))
+        self.setToolTip(tooltips.get(state, "Specter"))
 
     def on_error(self, message: str):
         self.setIcon(self._error_icon)
-        self.setToolTip(f"Room Presence Detector — Error: {message}")
+        self.setToolTip(f"Specter — Error: {message}")
 
     def set_autolock_checked(self, checked: bool):
         self._autolock_action.setChecked(checked)

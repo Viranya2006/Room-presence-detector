@@ -4,7 +4,7 @@
 ![Status](https://img.shields.io/badge/Status-Active-brightgreen)
 ![No Cloud](https://img.shields.io/badge/Cloud-None%20Required-orange)
 
-# Room Presence Detector
+# Specter
 
 **Turn your laptop into a hands-free security system.** This app uses your built-in speakers and microphone as an ultrasonic sonar to detect whether someone is in the room — and auto-locks your PC the moment you walk away.
 
@@ -78,7 +78,7 @@ The key insight: an empty room has a consistent echo signature. A person in the 
 
 ```bash
 # Clone or download this project
-cd "Room presence detector"
+cd "Specter"
 
 # Create a virtual environment
 python -m venv venv

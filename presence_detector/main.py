@@ -84,7 +84,7 @@ def main():
     tray.show()
     hud.show()
 
-    logger.info("Room Presence Detector started. Calibrating for %.0fs...",
+    logger.info("Specter started. Calibrating for %.0fs...",
                 config.CALIBRATION_DURATION)
 
     sys.exit(app.exec())
